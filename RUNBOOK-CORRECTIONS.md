@@ -1,57 +1,87 @@
 # Corrections to the CVE-2026-58415 runbook
 
-Apply these to your existing `cve-2026-58415-runbook.md`. The CVE facts
-(affected 2.4.0-2.4.68, fixed 2.4.69, CVSS 5.3 Medium, unauthenticated read
-of WebDAV dead properties) were all verified correct against Red Hat / SUSE /
-Debian / OpenCVE. Only the on-disk filename handling needs fixing.
+All items below were **verified by actually building and running the target**
+(httpd 2.4.68 in Docker) on 2026-10-22, not just reasoned about. The CVE facts
+(affected 2.4.0-2.4.68, fixed 2.4.69, CVSS 5.3 Medium, unauthenticated read of
+WebDAV dead properties) were confirmed correct against Red Hat / SUSE / Debian /
+OpenCVE. Two things in the original Dockerfile/runbook were wrong and would have
+broken the live demo; both are now fixed in the `Dockerfile` in this repo.
 
-## 1. The state filename is NOT `properties`
+## CRITICAL FIX 1 - ownership must be www-data, not daemon
 
-mod_dav_fs keeps one SDBM database **per resource, named after the resource**,
-inside the `.DAV` state directory — confirmed in the mod_dav_fs source
-(`modules/dav/fs/dbm.c`): "The filename of the database is equivalent to the
-target filename."
+The original Dockerfile did `chown -R daemon:daemon var htdocs/webdav`. On this
+httpd image the worker processes run as **www-data** (confirmed: the httpd.conf
+shipped in the image has `User www-data` / `Group www-data`). With the dirs
+owned by `daemon`, the very first PUT fails:
 
-So the property database for a resource called `demo.txt` is `.DAV/demo.txt`,
-and because the official httpd image builds APR with SDBM, that is normally a
-**pair** of files:
+```
+PUT /webdav/demo.txt  ->  HTTP 500
+[dav:error] Could not open the lock database.  [500, #400]
+```
 
-- `.DAV/demo.txt.pag`  <- the data (this is what carries the stored property value)
-- `.DAV/demo.txt.dir`  <- the index
+Fix (already applied in this repo's Dockerfile): chown to `www-data:www-data`.
+After the fix, a clean rebuild gives PUT 201 / PROPPATCH 207 with no manual
+intervention. Older httpd images used `daemon`, which is why the stale value was
+there.
 
-The exact extensions depend on the APR DBM backend compiled into the image, so
-never hard-code the name. Discover it from the directory listing.
+## FIX 2 - the state filename is `demo.txt`, not `properties` (and not a .pag/.dir pair)
 
-**Action:** everywhere the runbook says the file is `properties`, change the
-example to `demo.txt.pag` and add a note that the real name comes from the
-listing.
+Verified by `ls` inside the container after seeding a property:
 
-## 2. Make the directory listing the primary discovery step
+```
+htdocs/webdav/.DAV/
+-rwxr-xr-x 1 www-data www-data 12288 ... demo.txt
+```
 
-The stock httpd image has `Options Indexes` enabled on `htdocs`, and the
-`<Directory webdav>` block does not override it, so a request to the `.DAV/`
-directory returns an autoindex listing that shows the real filename. Use that
-listing to read the actual filename first, then fetch that exact file. This
-removes the guesswork that the old "may return a listing" wording left open.
+- It is a **single file** named exactly after the resource (`demo.txt`).
+- It is NOT named `properties` (the original runbook's assumption).
+- It is NOT a `.pag` / `.dir` SDBM pair (an earlier guess of mine that the live
+  test disproved - this APR build writes one file).
 
-Recommended order for the exploit section:
-1. On the target: `docker exec dav ls -la htdocs/webdav/.DAV/`  (note the real name)
-2. From the attacker: request the `.DAV/` directory and read the filename from the listing
-3. Fetch that exact file over HTTP
-4. Run `strings` + `grep` on the downloaded `.pag` file to surface the stored value
+So for the demo: seed a property on `demo.txt`, then the state file to read is
+`/webdav/.DAV/demo.txt`. If you name your resource something else, the state
+file takes that name - always read the real name from the listing rather than
+hard-coding it.
 
-## 3. Fix the OPTIONS probe
+The `.DAV/` directory itself is also browsable (the stock image has
+`Options Indexes` on for htdocs and the webdav block doesn't override it), so
+listing `/webdav/.DAV/` shows the filename over HTTP too. Make that listing your
+discovery step.
 
-`curl -I -X OPTIONS ...` mixes HEAD-only output with an OPTIONS method.
-Use `curl -i -X OPTIONS ...` instead — still shows the `DAV:` and `Allow`
-headers, without the method/flag mismatch.
+## FIX 3 - OPTIONS probe flag
 
-## 4. Mitigation and teardown: unchanged
+`curl -I -X OPTIONS ...` mixes HEAD-only output with an OPTIONS method. Use
+`curl -i -X OPTIONS ...` instead. (Verified: returns `DAV: 1,2` and the full
+`Allow:` list including PROPFIND/PROPPATCH/LOCK.)
 
-The `<LocationMatch "(^|/)\.DAV"> Require all denied </LocationMatch>` rule,
-the `httpd -t` syntax check, the graceful reload, and the teardown steps are
-all correct as written. The note that PROPFIND still works after the mitigation
-is a good, accurate touch — it shows the fix is surgical.
+## Verified exploit + mitigation results (2026-10-22)
+
+| Step | Result |
+|------|--------|
+| `httpd -v` | Apache/2.4.68 (Unix) |
+| base `GET /` | HTTP 200 |
+| `OPTIONS /webdav/` | 200, `DAV: 1,2` present |
+| `PUT /webdav/demo.txt` | 201 |
+| `PROPPATCH` marker property | 207 |
+| state file on disk | `.DAV/demo.txt` (single file, 12288 bytes) |
+| unauth `GET /webdav/.DAV/demo.txt` | 200, marker string present -> disclosure confirmed |
+| after `LocationMatch` deny + graceful reload | 403 |
+| `PROPFIND /webdav/demo.txt` after mitigation | 207 (legit WebDAV still works - fix is surgical) |
+
+Mitigation that was verified to work (copied into the container as
+`conf/mitigation.conf` and Include'd, to avoid shell-quoting mangling of the
+regex):
+
+```
+<LocationMatch "(^|/)\.DAV">
+    Require all denied
+</LocationMatch>
+```
+
+Note: appending this block via `docker exec ... sh -c 'printf ...'` mangles the
+regex (the `<` is read as a shell redirect). On the demo, either edit the conf
+inside the container with an editor, or copy a prepared `.conf` file in and
+`Include` it.
 
 ## Project reminders (from the ACW3 spec)
 
