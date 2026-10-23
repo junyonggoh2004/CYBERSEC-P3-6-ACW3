@@ -1,0 +1,26 @@
+# Patched variant for the permanent-fix test (report Appendix A.2 / D.2).
+# Identical to ./Dockerfile except the base image is httpd 2.4.69, which fixes
+# CVE-2026-58415 at source. No configuration workaround is applied here, so any
+# difference in behaviour versus the 2.4.68 target is due to the upgrade alone.
+FROM httpd:2.4.69
+
+# Enable mod_dav and mod_dav_fs (both required; fs depends on dav)
+RUN sed -i \
+  -e 's|^#LoadModule dav_module|LoadModule dav_module|' \
+  -e 's|^#LoadModule dav_fs_module|LoadModule dav_fs_module|' \
+  conf/httpd.conf
+
+# Prepare DavLockDB location and the WebDAV collection directory.
+# State dirs must be owned by www-data (the user httpd.conf runs workers as) or
+# mod_dav fails with "Could not open the lock database" (HTTP 500) on first PUT.
+RUN mkdir -p var htdocs/webdav \
+  && chown -R www-data:www-data var htdocs/webdav
+
+# Append WebDAV configuration. ServerName silences the AH00558 startup warning.
+RUN printf '\n\
+ServerName localhost\n\
+DavLockDB /usr/local/apache2/var/DavLock\n\
+<Directory "/usr/local/apache2/htdocs/webdav">\n\
+    Dav On\n\
+    Require all granted\n\
+</Directory>\n' >> conf/httpd.conf
