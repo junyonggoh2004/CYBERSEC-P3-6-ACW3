@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<D:propertyupdate xmlns:D="DAV:" xmlns:Z="urn:example">
+  <D:set><D:prop>
+    <Z:note>ACW3-VERIFY-MARKER owner=lab</Z:note>
+  </D:prop></D:set>
+</D:propertyupdate>
