@@ -122,8 +122,9 @@ python3 exploit/exploit.py --host 127.0.0.1 --port 8000 --n 6000
 ```
 
 The expected result is `[VERDICT] DENIAL OF SERVICE REPRODUCED`. Stop Terminal 1
-with `Ctrl+C`, restart it with `MODE=fixed`, and run the same Terminal 2 command
-to show `[VERDICT] Service stayed responsive`.
+with `Ctrl+C`, restart it with `scripts/run_target.sh fixed 127.0.0.1 8000`, and run
+`python3 exploit/exploit.py --host 127.0.0.1 --port 8000 --n 6000` to show remediation.
+The expected result for effective remediation is `[VERDICT] Service stayed responsive`.
 
 The one-shot helper is also available. It returns `2` when the DoS is reproduced,
 `0` when the fixed service remains healthy, and `1` if the target cannot start.
