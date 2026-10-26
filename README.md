@@ -29,27 +29,25 @@ replacing `.*?` with a non-backtracking group
 ## Layout
 
 ```
-app/        vulnerable + remediated Sniffer, and a tiny HTTP service that sniffs uploads
-exploit/    payload generator, live exploit driver, offline benchmark
-remediation/ illustrative patch.diff (mirrors the upstream CPython fix)
-docker/     real vulnerable CPython (3.12.0) vs patched (3.12.14) demonstration
-tests/      asserts the fix is fast + correct and the bug is genuine
-scripts/    run_local.sh (one-shot demo) and setup_kali.sh
-report/     REPORT.md — the full practicum write-up
+cve-2026-18503-lab/  application, exploit, scripts, tests, Docker files, and report
+DEMO-KALI.md          individual Kali VM demonstration runbook
+DEMO-TWO-VM.md        consolidated host-only two-VM demonstration runbook
 ```
 
 ## Run it locally (macOS / Linux)
 
-From the lab root:
+From the repository root:
 
 ```bash
+cd cve-2026-18503-lab
+
 # 1. Reproduce the Denial of Service (vulnerable server)
-scripts/run_local.sh vuln
+scripts/run_local.sh vuln 8000 3000
 #    -> malicious request takes seconds on typical hardware; /health probes time out
 #       [VERDICT] DENIAL OF SERVICE REPRODUCED   (exit code 2)
 
 # 2. Confirm the remediation (fixed server)
-scripts/run_local.sh fixed
+scripts/run_local.sh fixed 8000 3000
 #    -> same attack returns in ~3 ms; health checks never stall
 #       [VERDICT] Service stayed responsive       (exit code 0)
 
@@ -66,8 +64,10 @@ Run it manually to demo live exploit:
 
 ```bash
 # terminal A: start the vulnerable target
+cd cve-2026-18503-lab
 scripts/run_target.sh vuln 127.0.0.1 8000
 # terminal B
+cd cve-2026-18503-lab
 python3 exploit/exploit.py --host 127.0.0.1 --port 8000 --n 6000
 ```
 
@@ -76,9 +76,11 @@ The exploit should report `DENIAL OF SERVICE REPRODUCED`. Stop Terminal A with
 
 ```bash
 # terminal A: start the remediated target
+cd cve-2026-18503-lab
 scripts/run_target.sh fixed 127.0.0.1 8000
 
 # terminal B: show remediation is effective
+cd cve-2026-18503-lab
 python3 exploit/exploit.py --host 127.0.0.1 --port 8000 --n 6000
 ```
 
@@ -132,7 +134,7 @@ scripts/run_local.sh fixed 8000 6000
 ```
 
 These commands are for individual same-VM testing. For the consolidated dual-VM
-demonstration, see [`DEMO-TWO-VM.md`](cve-2026-18503-lab/DEMO-TWO-VM.md). It uses the same target
+demonstration, see [`DEMO-TWO-VM.md`](DEMO-TWO-VM.md). It uses the same target
 launcher with a host-only interface; do not expose the vulnerable service to a
 bridged or public network.
 
@@ -141,6 +143,7 @@ bridged or public network.
 Proves the CVE against the genuine standard library, not the vendored copy:
 
 ```bash
+cd cve-2026-18503-lab
 docker compose -f docker/docker-compose.yml up --build
 python3 exploit/exploit.py --port 8000   # python:3.12.0  -> DoS reproduced
 python3 exploit/exploit.py --port 8001   # python:3.12.14 -> harmless (patched)

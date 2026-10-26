@@ -46,7 +46,7 @@ git clone <repository-url>
 ```bash
 cd ~
 cd cve-2026-18503-lab
-ls          # expect: app  docker  exploit  README.md  remediation  report  scripts  tests
+ls          # expect: app  docker  exploit  remediation  report  scripts  tests
 ```
 
 > If a command says "No such file", you are not inside the lab folder. Run `pwd`
@@ -178,7 +178,7 @@ python3 exploit/exploit.py --port 8001   # python:3.12.14 -> harmless (patched)
 2. **Attack** (Part 2) — start vuln server, run exploit, show the freeze + verdict.
 3. **Fix** (Part 3) — restart fixed server, rerun exploit, show it shrug it off.
 4. **Evidence** (Part 4) — benchmark table + passing tests.
-5. **Wrap** — point to `report/REPORT.md` for identification → exploitation →
+5. **Wrap** — point to `cve-2026-18503-lab/report/REPORT.md` for identification → exploitation →
    remediation with measured numbers.
 
 ---
