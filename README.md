@@ -92,10 +92,13 @@ a payload that keeps the live demonstration within the assessment time.
 ## Run it in a Kali Linux VM
 
 The default Kali demonstration uses **one isolated Kali VM and two terminals**:
-Terminal 1 is the target service and Terminal 2 is the penetration-testing
+Terminal 1 is the target service and Terminal 2 is the penetration-testing/exploit
 terminal. The service intentionally binds to `127.0.0.1`, so this is the
-supported setup for the commands below. Kali ships Python 3, so there is
-nothing to install:
+supported setup for the commands below. Kali imports Python 3, so there is
+nothing to install. 
+
+Refer to [`DEMO-KALI.md`](DEMO-KALI.md) for specific setup 
+on how to reproduce the vulnerability on Kali VM using SSH
 
 ```bash
 cd ~/cve-2026-18503-lab
