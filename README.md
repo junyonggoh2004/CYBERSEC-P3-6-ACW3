@@ -31,8 +31,7 @@ replacing `.*?` with a non-backtracking group
 ```
 cve-2026-18503-lab/  application, exploit, scripts, tests, Docker files, and report
 DEMO-KALI.md          individual Kali VM demonstration runbook
-DEMO-TWO-VM.md        consolidated host-only two-VM demonstration runbook
-```
+DEMO-GUIDE-DUAL-VM.md        consolidated dual-VM demonstration guide
 
 ## Run it locally (macOS / Linux)
 
@@ -114,7 +113,7 @@ cd ~/cve-2026-18503-lab
 scripts/run_target.sh vuln 127.0.0.1 8000
 ```
 
-Terminal 2 — local penetration test:
+Terminal 2 — start exploit:
 
 ```bash
 cd ~/cve-2026-18503-lab
@@ -122,8 +121,17 @@ python3 exploit/exploit.py --host 127.0.0.1 --port 8000 --n 6000
 ```
 
 The expected result is `[VERDICT] DENIAL OF SERVICE REPRODUCED`. Stop Terminal 1
-with `Ctrl+C`, restart it with `scripts/run_target.sh fixed 127.0.0.1 8000`, and run
-`python3 exploit/exploit.py --host 127.0.0.1 --port 8000 --n 6000` to show remediation.
+with `Ctrl+C`, then start remediation with
+
+```bash
+scripts/run_target.sh fixed 127.0.0.1 8000
+```
+
+Run the exploit again in a 2nd terminal:
+
+```bash
+`python3 exploit/exploit.py --host 127.0.0.1 --port 8000 --n 6000` 
+```
 The expected result for effective remediation is `[VERDICT] Service stayed responsive`.
 
 The one-shot helper is also available. It returns `2` when the DoS is reproduced,
@@ -135,7 +143,7 @@ scripts/run_local.sh fixed 8000 6000
 ```
 
 These commands are for individual same-VM testing. For the consolidated dual-VM
-demonstration, see [`DEMO-TWO-VM.md`](DEMO-TWO-VM.md). It uses the same target
+demonstration, see [`DEMO-GUIDE-DUAL-VM.md`](DEMO-GUIDE-DUAL-VM.md). It uses the same target
 launcher with a host-only interface; do not expose the vulnerable service to a
 bridged or public network.
 

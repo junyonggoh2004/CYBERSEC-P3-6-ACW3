@@ -4,3 +4,5 @@ __pycache__/
 
 # Generated payload/output files
 *.csv
+
+.DS_Store
