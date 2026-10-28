@@ -130,7 +130,7 @@ scripts/run_target.sh fixed 127.0.0.1 8000
 Run the exploit again in a 2nd terminal:
 
 ```bash
-`python3 exploit/exploit.py --host 127.0.0.1 --port 8000 --n 6000` 
+python3 exploit/exploit.py --host 127.0.0.1 --port 8000 --n 6000
 ```
 The expected result for effective remediation is `[VERDICT] Service stayed responsive`.
 
