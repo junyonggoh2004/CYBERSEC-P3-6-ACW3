@@ -150,6 +150,37 @@ demonstration, see [`DEMO-GUIDE-DUAL-VM.md`](DEMO-GUIDE-DUAL-VM.md). It uses the
 launcher with a host-only interface; do not expose the vulnerable service to a
 bridged or public network.
 
+To compare vulnerable, corrected, and capped detection timings, run:
+
+```bash
+python3 exploit/benchmark.py
+```
+
+Expected output has this form. Exact timings vary by machine and background
+load; the important result is that the vulnerable `x` value approaches `4` when
+the input doubles, while the capped timing stays small.
+
+```text
+shape=comma_quote_gap  (lower is better; 'x' = growth vs previous row)
+
+      n     bytes      vuln ms      x     fixed ms      x   capped ms
+-----------------------------------------------------------------------
+    250      5500        26.28      -         2.51      -        1.681
+    500     11000        87.88    3.3         2.89    1.2        2.551
+   1000     22000       337.49    3.8         6.24    2.2        2.730
+   2000     44000      1376.65    4.1        11.78    1.9        2.446
+
+Interpretation:
+  * vuln 'x' ~= 4: when n (input) doubles, the vulnerable scan takes about 
+    four times longer. This is quadratic O(n^2) growth caused by the vulnerability.
+  * fixed 'x' ~= 2: when n (input) doubles, the corrected scan takes about twice as
+    long. This is normal linear O(n) growth.
+  * capped ms is the time taken when analysing the first 8 KiB. Input is capped to only 8 KiB.
+```
+
+The sample above was recorded with `--sizes 250,500,1000,2000`; the default
+command tests larger sizes and prints the same columns.
+
 ## (Optional) Real vulnerable CPython via Docker
 
 Proves the CVE against the genuine standard library, not the vendored copy:

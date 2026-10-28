@@ -19,7 +19,7 @@ Copy the complete `cve-2026-18503-lab` folder into the VM using the VMware or
 VirtualBox shared folder, or a USB drive. Then copy it into your home directory in
 Kali if necessary.
 
-### Option B — `scp` from the host Mac (connect local SSH to Kali VM)
+### Option B — `scp` from the host Mac (connect local device to Kali VM SSH)
 
 ```bash
 # in Kali:
@@ -27,7 +27,7 @@ sudo systemctl enable --now ssh
 ip -4 addr                  # note Kali's IP
 
 # in a Mac terminal:
-scp -r "<path-to>/cve-2026-18503-lab" <kali-user>@<kali-ip>:/home/<kali-user>/
+scp -r "<path-to>/cve-2026-18503-lab" <kali-user>@<kali-ip>:/home/kali
 
 #replace kali-user with your kali userame, and kali-ip with the ip address shown in ip -4
 ```
