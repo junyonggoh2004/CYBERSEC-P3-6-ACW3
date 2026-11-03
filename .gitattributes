@@ -1,0 +1,8 @@
+# Force LF on files that must stay LF to build/run on Linux (Docker hosts, VMs),
+# regardless of a contributor's core.autocrlf setting. Protects both the WebDAV
+# (CVE-2026-58415) and Digest (CVE-2026-73636) labs.
+*.sh         text eol=lf
+*.py         text eol=lf
+*.conf       text eol=lf
+Dockerfile   text eol=lf
+Dockerfile*  text eol=lf

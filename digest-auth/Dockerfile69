@@ -1,0 +1,32 @@
+# Patched target for CVE-2026-73636 — identical config, fixed base image.
+# 2.4.69 is the first release containing the mod_auth_digest nonce/nonce-count
+# rewrite (patch fc722c6). No config workaround is applied, so any behavioural
+# difference versus the 2.4.68 target is due to the upgrade alone — this is the
+# before/after proof for the ACW3 report.
+FROM httpd:2.4.69
+
+RUN sed -i 's|^#LoadModule auth_digest_module|LoadModule auth_digest_module|' \
+  conf/httpd.conf
+
+RUN printf 'alice:secret:%s\n' \
+      "$(printf '%s' 'alice:secret:password123' | md5sum | cut -d' ' -f1)" \
+      > /usr/local/apache2/.htdigest \
+  && chown www-data:www-data /usr/local/apache2/.htdigest \
+  && chmod 640 /usr/local/apache2/.htdigest
+
+RUN mkdir -p htdocs/secret \
+  && printf 'FLAG{digest-replay-demo} protected content, authorised users only.\n' \
+       > htdocs/secret/index.html \
+  && chown -R www-data:www-data htdocs/secret
+
+RUN printf '\n\
+ServerName localhost\n\
+AuthDigestShmemSize 1024\n\
+<Directory "/usr/local/apache2/htdocs/secret">\n\
+    AuthType Digest\n\
+    AuthName "secret"\n\
+    AuthDigestProvider file\n\
+    AuthUserFile /usr/local/apache2/.htdigest\n\
+    AuthDigestNonceLifetime 0\n\
+    Require valid-user\n\
+</Directory>\n' >> conf/httpd.conf
