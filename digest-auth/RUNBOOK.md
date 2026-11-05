@@ -187,8 +187,37 @@ RESULT: VULNERABLE (BYPASS) - a replayed one-time-nonce header was
         ACCEPTED after client-entry eviction (HTTP 200).
 ```
 
-and exits `0`. *Capture the full output as Figure B3.4. This is the disclosure —
+and exits `0`. *Capture the full output as Figure B3.4a. This is the disclosure —
 a spent credential re-accepted without re-authentication.*
+
+### Optional server-side corroboration *(Figure B3.4b)*
+
+For a short log excerpt that corroborates the shared-memory-client-list mechanism,
+enable trace-level logging on the target once, then grab two lines after the run:
+
+```powershell
+# one-time: raise mod_auth_digest log level and reload gracefully
+docker exec digest-vuln sh -c "echo 'LogLevel auth_digest:trace8' >> conf/httpd.conf && apachectl -k graceful"
+
+# after running exploit.py, pull a 2-line excerpt (no Select-String prefix noise)
+$log = docker logs digest-vuln 2>&1
+@(
+  ($log | Select-String "AH01764" | Select-Object -First 1).Line
+  ($log | Select-String "AH01768" | Select-Object -First 1).Line
+)
+```
+
+**Expect** two lines showing the shmem client list in use during the attack:
+
+- `AH01764: get_client(): client N found` (`mod_auth_digest.c:797`) — server
+  looked up an entry in the shared-memory client list.
+- `AH01768: allocated new client N` (`mod_auth_digest.c:912`) — server allocated
+  a *new* entry; this is what the 60 churn handshakes do repeatedly, which
+  evicts the captured nonce's entry and opens the replay window.
+
+The full trace8 log is several hundred lines; the two-line excerpt is sufficient
+for the report. Save the complete log as `digest-auth/logs/vuln-trace8.log` and
+reference it as a submission-bundle artifact rather than pasting it inline.
 
 > **Mechanism (confirmed by the step-2/step-3 behaviour above, matching patch
 > `fc722c6`):** the server records a spent one-time nonce only in the per-client
@@ -248,7 +277,8 @@ docker rmi digest-vuln:2.4.68 digest-fixed:2.4.69
 | 2 | B3.1 | `httpd -v` / `-M` | Apache/2.4.68; `auth_digest_module` loaded |
 | 3 | B3.2 | `grep -B2 -A8` config | `AuthDigestShmemSize 1024` + `AuthDigestNonceLifetime 0`, Digest auth on `/secret` |
 | 4 | B3.3 | unauth GET / digest GET | 401 + `WWW-Authenticate: Digest`; then 200 + `nextnonce` |
-| 5 | B3.4 | `exploit.py --port 8068` | immediate replay 401; **replay after eviction 200 — BYPASS** |
+| 5 | B3.4a | `exploit.py --port 8068` | immediate replay 401; **replay after eviction 200 — BYPASS** |
+| 5 | B3.4b *(optional)* | `AH01764` + `AH01768` log excerpt | shmem client-list lookup + allocation during the attack |
 | 6 | D1–D3 | `exploit.py --port 8069` | auth 200; **both replays 401 — fixed at source** |
 
 All steps above were verified end to end against live Docker builds on
